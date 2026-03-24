@@ -1,0 +1,19 @@
+# Virtual environment
+.venv/
+
+# PyInstaller build output
+build/
+dist/
+*.spec.bak
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# VS Code
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
