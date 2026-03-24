@@ -221,16 +221,28 @@ class MainWindow(QMainWindow):
         self._thumb_worker.thumbnail_ready.connect(self._thumb_panel.update_thumbnail)
         self._thumb_worker.finished.connect(self._thumb_thread.quit)
         self._thumb_worker.finished.connect(self._thumb_worker.deleteLater)
+        # 執行緒結束後，主動把 Python 變數清成 None
+        # 這樣 deleteLater 刪掉 C++ 物件後就不會留下「殭屍 wrapper」
         self._thumb_thread.finished.connect(self._thumb_thread.deleteLater)
+        self._thumb_thread.finished.connect(self._clear_thumb_refs)
 
         self._thumb_thread.start()
+
+    def _clear_thumb_refs(self) -> None:
+        """執行緒自然結束時，清除 Python 端的參考。"""
+        self._thumb_thread = None
+        self._thumb_worker = None
 
     def _stop_thumbnail_loading(self) -> None:
         if self._thumb_worker:
             self._thumb_worker.stop()
-        if self._thumb_thread and self._thumb_thread.isRunning():
-            self._thumb_thread.quit()
-            self._thumb_thread.wait(1500)
+        try:
+            if self._thumb_thread and self._thumb_thread.isRunning():
+                self._thumb_thread.quit()
+                self._thumb_thread.wait(1500)
+        except RuntimeError:
+            # C++ 物件已被 deleteLater 清除，直接忽略
+            pass
         self._thumb_thread = None
         self._thumb_worker = None
 
