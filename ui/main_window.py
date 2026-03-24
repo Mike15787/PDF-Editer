@@ -4,6 +4,7 @@ Main application window.
 from __future__ import annotations
 
 import os
+import subprocess
 
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QImage, QKeySequence, QPixmap
@@ -13,6 +14,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMainWindow,
     QMessageBox,
+    QPushButton,
     QSplitter,
     QStatusBar,
     QToolBar,
@@ -425,14 +427,21 @@ class MainWindow(QMainWindow):
             os.path.basename(self._engine.filepath or "output")
         )[0]
         files = self._engine.split_by_n(10, out_dir, base)
-        if files:
-            names = "\n".join(f"  • {os.path.basename(f)}" for f in files)
-            QMessageBox.information(
-                self, "分割完成",
-                f"已分割為 {len(files)} 個檔案：\n{names}\n\n輸出資料夾：{out_dir}",
-            )
-        else:
+        if not files:
             QMessageBox.critical(self, "錯誤", "分割失敗。")
+            return
+
+        names = "\n".join(f"  • {os.path.basename(f)}" for f in files)
+        msg = QMessageBox(self)
+        msg.setWindowTitle("分割完成")
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setText(f"已分割為 <b>{len(files)}</b> 個檔案：")
+        msg.setInformativeText(f"{names}\n\n輸出資料夾：{out_dir}")
+        open_btn = msg.addButton("開啟資料夾", QMessageBox.ButtonRole.ActionRole)
+        msg.addButton(QMessageBox.StandardButton.Ok)
+        msg.exec()
+        if msg.clickedButton() == open_btn:
+            subprocess.Popen(["explorer", os.path.normpath(out_dir)])
 
     # ──────────────────────────────────────────────────────────────────
     # Status
