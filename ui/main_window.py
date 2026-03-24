@@ -219,31 +219,20 @@ class MainWindow(QMainWindow):
 
         self._thumb_thread.started.connect(self._thumb_worker.run)
         self._thumb_worker.thumbnail_ready.connect(self._thumb_panel.update_thumbnail)
+        # 只讓 worker 通知 thread 可以結束；生命週期完全由 _stop_thumbnail_loading 管理，
+        # 不使用 deleteLater / _clear_thumb_refs，避免非同步回呼誤清新執行緒的參考。
         self._thumb_worker.finished.connect(self._thumb_thread.quit)
-        self._thumb_worker.finished.connect(self._thumb_worker.deleteLater)
-        # 執行緒結束後，主動把 Python 變數清成 None
-        # 這樣 deleteLater 刪掉 C++ 物件後就不會留下「殭屍 wrapper」
-        self._thumb_thread.finished.connect(self._thumb_thread.deleteLater)
-        self._thumb_thread.finished.connect(self._clear_thumb_refs)
 
         self._thumb_thread.start()
-
-    def _clear_thumb_refs(self) -> None:
-        """執行緒自然結束時，清除 Python 端的參考。"""
-        self._thumb_thread = None
-        self._thumb_worker = None
 
     def _stop_thumbnail_loading(self) -> None:
         if self._thumb_worker:
             self._thumb_worker.stop()
-        try:
-            if self._thumb_thread and self._thumb_thread.isRunning():
+        if self._thumb_thread:
+            if self._thumb_thread.isRunning():
                 self._thumb_thread.quit()
-                self._thumb_thread.wait(1500)
-        except RuntimeError:
-            # C++ 物件已被 deleteLater 清除，直接忽略
-            pass
-        self._thumb_thread = None
+                self._thumb_thread.wait()   # 無限等待，確保執行緒真正停止再繼續
+            self._thumb_thread = None
         self._thumb_worker = None
 
     def _reload_all(self) -> None:
